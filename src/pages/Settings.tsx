@@ -7,10 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Scale, MapPin, Wifi, RefreshCw, Save, CheckCircle, Loader2, Navigation, AlertCircle, Bot, Key, ExternalLink } from "lucide-react";
+import { Globe, Scale, MapPin, Wifi, RefreshCw, Save, CheckCircle, Loader2, Navigation, AlertCircle, Bot, Key, ExternalLink, Sparkles } from "lucide-react";
 import { Language } from "@/i18n/translations";
-import { toast } from "@/hooks/use-toast";
-import { setGeminiApiKey, isGeminiConfigured, getGeminiApiKeyMasked } from "@/hooks/useGemini";
+import { 
+  setGeminiApiKey, 
+  isGeminiConfigured, 
+  getGeminiApiKeyMasked,
+  AVAILABLE_GEMINI_MODELS,
+  getGeminiModel,
+  setGeminiModel
+} from "@/hooks/useGemini";
 
 const Settings: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
@@ -20,9 +26,11 @@ const Settings: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
 
   useEffect(() => {
     setIsApiKeyConfigured(isGeminiConfigured());
+    setSelectedModel(getGeminiModel());
   }, []);
 
   const handleSaveApiKey = () => {
@@ -32,6 +40,15 @@ const Settings: React.FC = () => {
       setApiKey("");
       toast({ title: language === "hi" ? "API Key सहेजी गई!" : language === "mr" ? "API Key जतन झाली!" : "API Key saved!" });
     }
+  };
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId);
+    setGeminiModel(modelId);
+    toast({ 
+      title: language === "hi" ? "AI मॉडल अपडेट हुआ!" : language === "mr" ? "AI मॉडेल अपडेट झाले!" : "AI Model Updated!",
+      description: AVAILABLE_GEMINI_MODELS.find(m => m.id === modelId)?.name || modelId
+    });
   };
 
   const handleDetectLocation = async () => {
@@ -227,6 +244,44 @@ const Settings: React.FC = () => {
                 : "To use the voice bot, enter your free Gemini API key below."}
             </p>
             
+            {/* AI Model Selector */}
+            <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-purple-950 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  {language === "hi" ? "AI मॉडल (वॉयस बॉट व विजन डायग्नोस्टिक्स):" : language === "mr" ? "AI मॉडेल (व्हॉइस बॉट आणि व्हिजनसाठी):" : "AI Foundation Model (Voice Bot & Vision):"}
+                </label>
+                <Badge variant="outline" className="text-xs bg-white text-purple-700 border-purple-300 font-semibold">
+                  {AVAILABLE_GEMINI_MODELS.find(m => m.id === selectedModel)?.badge || "Selected"}
+                </Badge>
+              </div>
+
+              <Select value={selectedModel} onValueChange={handleModelChange}>
+                <SelectTrigger className="h-11 bg-white text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_GEMINI_MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <div className="flex items-center gap-2 py-0.5">
+                        <span className="font-medium">{m.name}</span>
+                        <span className="text-xs text-muted-foreground">({m.badge})</span>
+                        {m.recommended && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <p className="text-xs text-purple-800/80 pt-0.5">
+                {AVAILABLE_GEMINI_MODELS.find(m => m.id === selectedModel)?.description}
+              </p>
+            </div>
+
             {isApiKeyConfigured && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm text-green-700 flex items-center gap-2">
