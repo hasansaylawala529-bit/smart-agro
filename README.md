@@ -235,5 +235,13 @@ npm test
 
 ---
 
+## 🤖 AI-Assisted Engineering & Tooling Acknowledgements
+This project was engineered leveraging modern agentic AI workflows and developer intelligence tools:
+- **Google Antigravity & Agentic Pair Programming**: Accelerated architectural design, component scaffolding, comprehensive test suite generation, and multi-stage Git staging workflows.
+- **ChatGPT (OpenAI)**: Assisted in agro-climatic dataset structuring (ICAR standards, Maharashtra district profiles), trilingual localization validation (English, Hindi, Marathi), and prompt design.
+- **Google Generative AI (Gemini 2.0 Flash)**: Integrated runtime foundation model powering real-time, context-aware agricultural advisory and hands-free voice assistance.
+
+---
+
 ## 📄 License
 This project is open source and available under the [MIT License](LICENSE).
