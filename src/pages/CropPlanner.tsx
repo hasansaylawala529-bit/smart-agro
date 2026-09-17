@@ -35,6 +35,7 @@ import { maharashtraDistricts } from "@/data/districts";
 import { SeasonType, CropRecommendationResult } from "@/services/cropRecommendationService";
 import { CropCard } from "@/components/crop/CropCard";
 import { CropDetailModal } from "@/components/crop/CropDetailModal";
+import { CropProfitabilityCalculator } from "@/components/crop/CropProfitabilityCalculator";
 import { LocationSelectorModal } from "@/components/location/LocationSelectorModal";
 import { intercroppingPairs, fertilizerPlan } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
@@ -157,6 +158,9 @@ const CropPlanner: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="fertilizer" className="text-sm h-10 px-5 font-medium">
             🧪 {t("crop.fertilizer")}
+          </TabsTrigger>
+          <TabsTrigger value="profitability" className="text-sm h-10 px-5 font-medium">
+            💰 {t("crop.profitability")}
           </TabsTrigger>
         </TabsList>
 
@@ -511,6 +515,11 @@ const CropPlanner: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab 4: Profitability & ROI Calculator */}
+        <TabsContent value="profitability">
+          <CropProfitabilityCalculator defaultFarmSize={parseFloat(farmSize) || 2.5} />
         </TabsContent>
       </Tabs>
 
