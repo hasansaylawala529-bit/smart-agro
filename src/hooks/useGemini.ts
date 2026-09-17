@@ -1,15 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Get Gemini API key from environment variable or localStorage (configured via Settings)
-const getApiKey = (): string => {
-  if (typeof window !== 'undefined') {
-    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (envKey && envKey !== 'your_gemini_api_key_here' && envKey !== 'YOUR_OWN_API_KEY_HERE') {
-      return envKey;
+/**
+ * Retrieve Gemini API key:
+ * Prioritizes user's manually entered key from Settings (localStorage),
+ * then falls back to build-time environment variable if configured.
+ */
+export const getApiKey = (): string => {
+  if (typeof window !== "undefined") {
+    const userKey = localStorage.getItem("gemini_api_key");
+    if (userKey && userKey.trim().length > 0) {
+      return userKey.trim().replace(/^["']|["']$/g, "");
     }
-    return localStorage.getItem('gemini_api_key') || '';
+
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && envKey !== "your_gemini_api_key_here" && envKey !== "YOUR_OWN_API_KEY_HERE") {
+      return envKey.trim().replace(/^["']|["']$/g, "");
+    }
   }
-  return '';
+  return "";
 };
 
 const getSystemPrompt = (lang: "en" | "hi" | "mr", farmLocation: string) => {
@@ -99,50 +107,51 @@ export interface GeminiModelOption {
   recommended?: boolean;
 }
 
+/**
+ * Official verified Google AI Studio Gemini API endpoints
+ */
 export const AVAILABLE_GEMINI_MODELS: GeminiModelOption[] = [
   {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
     badge: "Recommended (High Quota)",
-    description: "Production-ready, ultra-fast model with 15 requests/min and 1,500 requests/day on free tier.",
+    description: "Google's production-ready multimodal flagship. Highest speed, generous free tier limit (15 requests/min, 1,500/day).",
     recommended: true,
   },
   {
     id: "gemini-1.5-flash",
     name: "Gemini 1.5 Flash",
     badge: "Fast & Lightweight",
-    description: "Reliable, resource-efficient model with 15 requests/min free tier quota.",
-  },
-  {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    badge: "Latest Preview",
-    description: "Google's latest multimodal architecture for advanced reasoning and vision.",
-  },
-  {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    badge: "Deep Reasoning (Low Quota)",
-    description: "Deep agronomic reasoning. Free tier has a strict limit of only 2 requests/min.",
+    description: "Proven high-throughput model with generous free tier availability.",
   },
   {
     id: "gemini-1.5-pro",
     name: "Gemini 1.5 Pro",
-    badge: "Large Context (Low Quota)",
-    description: "Foundational flagship model. Free tier has a strict limit of only 2 requests/min.",
+    badge: "Deep Reasoning",
+    description: "Advanced reasoning for multi-step agronomic analysis. (Free tier has a strict limit of 2 requests/min).",
   },
 ];
 
+/**
+ * Get active model with automatic sanitization of outdated/invalid model IDs
+ */
 export const getGeminiModel = (): string => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("gemini_model") || "gemini-2.0-flash";
+    const saved = localStorage.getItem("gemini_model");
+    if (saved && AVAILABLE_GEMINI_MODELS.some((m) => m.id === saved)) {
+      return saved;
+    }
+    // Automatically sanitize invalid or preview models back to stable gemini-2.0-flash
+    localStorage.setItem("gemini_model", "gemini-2.0-flash");
+    return "gemini-2.0-flash";
   }
   return "gemini-2.0-flash";
 };
 
 export const setGeminiModel = (model: string): void => {
   if (typeof window !== "undefined") {
-    localStorage.setItem("gemini_model", model.trim());
+    const sanitized = AVAILABLE_GEMINI_MODELS.some((m) => m.id === model) ? model : "gemini-2.0-flash";
+    localStorage.setItem("gemini_model", sanitized);
   }
 };
 
@@ -168,6 +177,9 @@ export interface DiseaseAnalysisResult {
   modelUsed?: string;
 }
 
+/**
+ * Text Chat Assistant via Gemini API
+ */
 export async function getGeminiResponse(
   userMessage: string,
   lang: "en" | "hi" | "mr",
@@ -187,6 +199,7 @@ export async function getGeminiResponse(
   }
 
   const configuredModel = getGeminiModel();
+  // Safe fallback sequence: user selected model -> gemini-2.0-flash -> gemini-1.5-flash
   const modelsToTry = [configuredModel, "gemini-2.0-flash", "gemini-1.5-flash"].filter(
     (m, i, arr) => arr.indexOf(m) === i
   );
@@ -222,35 +235,57 @@ Base your crop and weather advice strictly on this real farm data above. Do NOT 
       const text = result.response.text();
       return text;
     } catch (error: any) {
-      console.warn(`Model ${modelName} failed, checking next model:`, error?.message);
+      console.warn(`Model ${modelName} call error:`, error?.message);
+      
+      // If this was the last model in our fallback chain, format a precise diagnostic response
       if (modelName === modelsToTry[modelsToTry.length - 1]) {
-        if (error?.message?.includes('API_KEY_INVALID') || error?.message?.includes('invalid')) {
+        const errorMsg = error?.message || "";
+
+        // 1. Invalid API Key
+        if (
+          errorMsg.includes("API_KEY_INVALID") ||
+          errorMsg.includes("API key not valid") ||
+          errorMsg.includes("key is invalid")
+        ) {
           const invalidKeyMessages = {
-            en: "The API key is invalid. Please check your Gemini API key in Settings.",
-            hi: "API key अमान्य है। कृपया सेटिंग्स में अपनी Gemini API key जाँचें।",
-            mr: "API key अवैध आहे. कृपया सेटिंग्जमध्ये तुमची Gemini API key तपासा."
+            en: "The Gemini API key appears invalid. Please verify your API key in Settings (get a fresh key from aistudio.google.com).",
+            hi: "Gemini API key अमान्य है। कृपया सेटिंग्स में अपनी API key की जांच करें (aistudio.google.com से नई key लें)।",
+            mr: "Gemini API key अवैध आहे. कृपया सेटिंग्जमध्ये तुमची API key तपासा (aistudio.google.com वरून नवीन key मिळवा)."
           };
           return invalidKeyMessages[lang];
         }
         
+        // 2. Real Quota / Rate Limit (using word boundary and specific status codes)
         if (
-          error?.message?.includes('quota') ||
-          error?.message?.includes('rate') ||
-          error?.message?.includes('429') ||
-          error?.message?.includes('RESOURCE_EXHAUSTED')
+          /\b429\b/.test(errorMsg) ||
+          /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
+          /\brate[- ]?limit/i.test(errorMsg) ||
+          /\bquota\b/i.test(errorMsg)
         ) {
           const quotaMessages = {
-            en: "Google Gemini Free Tier Limit Reached (429). Google AI Studio free tier limits requests per minute (Pro models allow only 2 requests/min). Please wait 30–60 seconds, or switch to 'Gemini 2.0 Flash' in Settings for higher free quotas.",
-            hi: "Google Gemini फ्री टियर दर सीमा समाप्त (429)। Google AI Studio फ्री टियर प्रति मिनट अनुरोधों को सीमित करता है (Pro मॉडल में केवल 2 अनुरोध/मिनट)। कृपया 30-60 सेकंड प्रतीक्षा करें, या अधिक कोटा के लिए सेटिंग्स में 'Gemini 2.0 Flash' चुनें।",
-            mr: "Google Gemini फ्री टियर मर्यादा संपली (429). Google AI Studio मोफत टियरमध्ये प्रति मिनिट विनंत्या मर्यादित आहेत (Pro मॉडेलसाठी फक्त २ विनंत्या/मिनिट). कृपया ३०-६० सेकंद थांबा, किंवा जास्त मर्यादेसाठी सेटिंग्जमध्ये 'Gemini 2.0 Flash' निवडा."
+            en: "Google Gemini Free Tier Rate Limit Reached (429). The free tier limits requests per minute. Please wait 30–60 seconds, or ensure 'Gemini 2.0 Flash' is selected in Settings.",
+            hi: "Google Gemini फ्री टियर दर सीमा समाप्त (429)। कृपया 30-60 सेकंड प्रतीक्षा करें, या सेटिंग्स में 'Gemini 2.0 Flash' चुनें।",
+            mr: "Google Gemini फ्री टियर मर्यादा संपली (429). कृपया ३०-६० सेकंद थांबा, किंवा सेटिंग्जमध्ये 'Gemini 2.0 Flash' निवडा."
           };
           return quotaMessages[lang];
         }
 
+        // 3. Network or browser blocker failure
+        if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+          const netMessages = {
+            en: "Unable to connect to Google Gemini API. Please check your internet connection or browser ad-blocker.",
+            hi: "Google Gemini API से कनेक्ट करने में असमर्थ। कृपया इंटरनेट कनेक्शन या ब्राउज़र एड-ब्लॉकर जांचें।",
+            mr: "Google Gemini API शी संपर्क जोडण्यात अयशस्वी. कृपया इंटरनेट कनेक्शन किंवा ब्राउझर तपासा."
+          };
+          return netMessages[lang];
+        }
+
+        // 4. Clean error message with raw prefix stripped
+        const cleanMsg = errorMsg.replace(/\[GoogleGenerativeAI Error\]:\s*/, "").slice(0, 180);
         const fallbackMessages = {
-          en: `Connection error: ${error?.message || 'Unknown error'}. Please try again.`,
-          hi: `कनेक्शन त्रुटि: ${error?.message || 'अज्ञात त्रुटि'}। कृपया पुनः प्रयास करें।`,
-          mr: `कनेक्शन त्रुटी: ${error?.message || 'अज्ञात त्रुटी'}. कृपया पुन्हा प्रयत्न करा.`
+          en: `Gemini API response: ${cleanMsg || "Unable to generate response. Please try again."}`,
+          hi: `Gemini API प्रतिक्रिया: ${cleanMsg || "प्रतिक्रिया उत्पन्न करने में असमर्थ। पुनः प्रयास करें।"}`,
+          mr: `Gemini API प्रतिसाद: ${cleanMsg || "प्रतिसाद देण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा."}`
         };
         return fallbackMessages[lang];
       }
@@ -260,10 +295,82 @@ Base your crop and weather advice strictly on this real farm data above. Do NOT 
   return "Unable to get response from Gemini.";
 }
 
-// Multimodal Leaf Disease Diagnostics via Gemini Vision
+/**
+ * Prepares image for Gemini Vision API:
+ * Converts SVG strings / data URLs into valid base64-encoded JPEG image bytes
+ * so Gemini Vision never fails with "TYPE_BYTES Base64 decoding failed".
+ */
+export async function prepareImageForGemini(
+  dataUrlOrBase64: string,
+  mimeType: string
+): Promise<{ base64Data: string; mimeType: string }> {
+  // If input is an SVG data URL or contains raw SVG markup, rasterize it onto a Canvas
+  if (
+    mimeType === "image/svg+xml" ||
+    dataUrlOrBase64.startsWith("data:image/svg+xml") ||
+    dataUrlOrBase64.includes("<svg")
+  ) {
+    return new Promise((resolve) => {
+      if (typeof window === "undefined") {
+        resolve({ base64Data: dataUrlOrBase64, mimeType: "image/jpeg" });
+        return;
+      }
+
+      const svgData = dataUrlOrBase64.startsWith("data:")
+        ? dataUrlOrBase64
+        : `data:image/svg+xml;utf8,${encodeURIComponent(dataUrlOrBase64)}`;
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width || 400;
+        canvas.height = img.height || 300;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#1e3a1e";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          resolve({
+            base64Data: jpegDataUrl.split(",")[1],
+            mimeType: "image/jpeg",
+          });
+        } else {
+          resolve({
+            base64Data: dataUrlOrBase64.includes(",") ? dataUrlOrBase64.split(",")[1] : dataUrlOrBase64,
+            mimeType: "image/jpeg",
+          });
+        }
+      };
+      img.onerror = () => {
+        // Fallback: strip data prefix if present
+        resolve({
+          base64Data: dataUrlOrBase64.includes(",") ? dataUrlOrBase64.split(",")[1] : dataUrlOrBase64,
+          mimeType: "image/jpeg",
+        });
+      };
+      img.src = svgData;
+    });
+  }
+
+  // Standard JPEG / PNG / WebP image
+  const cleanBase64 = dataUrlOrBase64.includes(",")
+    ? dataUrlOrBase64.split(",")[1]
+    : dataUrlOrBase64;
+
+  const validMimes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+  const normalizedMime = validMimes.includes(mimeType) ? mimeType : "image/jpeg";
+
+  return { base64Data: cleanBase64, mimeType: normalizedMime };
+}
+
+/**
+ * Multimodal Leaf Disease Diagnostics via Gemini Vision API
+ */
 export async function analyzeCropImageWithGemini(
-  base64Data: string,
-  mimeType: string,
+  imageDataUrl: string,
+  rawMimeType: string,
   farmLocation: string = "Maharashtra"
 ): Promise<DiseaseAnalysisResult> {
   const apiKey = getApiKey();
@@ -324,15 +431,17 @@ export async function analyzeCropImageWithGemini(
     };
   }
 
+  // Pre-process and rasterize any SVG or image into pure base64 JPEG bytes
+  const { base64Data, mimeType } = await prepareImageForGemini(imageDataUrl, rawMimeType);
+
   const configuredModel = getGeminiModel();
   const modelsToTry = [configuredModel, "gemini-2.0-flash", "gemini-1.5-flash"].filter(
     (m, i, arr) => arr.indexOf(m) === i
   );
 
-  const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
   const imagePart = {
     inlineData: {
-      data: cleanBase64,
+      data: base64Data,
       mimeType: mimeType || "image/jpeg"
     }
   };
@@ -408,7 +517,20 @@ CRITICAL: Return ONLY a raw JSON object (do NOT wrap in markdown \`\`\`json code
     } catch (err: any) {
       console.warn(`Vision inference failed on model ${modelName}:`, err?.message);
       if (modelName === modelsToTry[modelsToTry.length - 1]) {
-        throw new Error(err?.message || "Failed to analyze image with Gemini Vision");
+        const errorMsg = err?.message || "";
+        if (errorMsg.includes("API_KEY_INVALID") || errorMsg.includes("API key not valid")) {
+          throw new Error("Invalid Gemini API Key. Please verify your API key in Settings.");
+        }
+        if (
+          /\b429\b/.test(errorMsg) ||
+          /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
+          /\brate[- ]?limit/i.test(errorMsg) ||
+          /\bquota\b/i.test(errorMsg)
+        ) {
+          throw new Error("Gemini API rate limit reached (429). Please wait 30–60 seconds and try again.");
+        }
+        const cleanMsg = errorMsg.replace(/\[GoogleGenerativeAI Error\]:\s*/, "").slice(0, 160);
+        throw new Error(cleanMsg || "Failed to analyze image with Gemini Vision");
       }
     }
   }
@@ -421,16 +543,22 @@ export function isGeminiConfigured(): boolean {
   return getApiKey().length > 0;
 }
 
-// Save API key to localStorage
+// Save API key to localStorage with sanitization
 export function setGeminiApiKey(key: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('gemini_api_key', key.trim());
+  if (typeof window !== "undefined") {
+    const cleaned = key.trim().replace(/^["']|["']$/g, "");
+    if (cleaned.length === 0) {
+      localStorage.removeItem("gemini_api_key");
+    } else {
+      localStorage.setItem("gemini_api_key", cleaned);
+    }
   }
 }
 
 // Get current API key (masked for display)
 export function getGeminiApiKeyMasked(): string {
   const key = getApiKey();
-  if (!key) return '';
-  return key.slice(0, 8) + '...' + key.slice(-4);
+  if (!key) return "";
+  if (key.length <= 10) return "••••••••";
+  return key.slice(0, 6) + "••••••••" + key.slice(-4);
 }

@@ -42,6 +42,16 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleClearApiKey = () => {
+    setGeminiApiKey("");
+    setIsApiKeyConfigured(false);
+    setApiKey("");
+    toast({ 
+      title: language === "hi" ? "API Key हटा दी गई" : language === "mr" ? "API Key काढली" : "API Key Cleared",
+      description: language === "hi" ? "अब आप नई key दर्ज कर सकते हैं" : language === "mr" ? "आता नवीन key प्रविष्ट करू शकता" : "You can now enter a fresh API key."
+    });
+  };
+
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId);
     setGeminiModel(modelId);
@@ -297,11 +307,20 @@ const Settings: React.FC = () => {
             </div>
 
             {isApiKeyConfigured && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
                 <p className="text-sm text-green-700 flex items-center gap-2">
                   <Key className="h-4 w-4" />
                   {language === "hi" ? "वर्तमान Key:" : language === "mr" ? "सध्याची Key:" : "Current Key:"} {getGeminiApiKeyMasked()}
                 </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearApiKey}
+                  className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  {language === "hi" ? "Key हटाएं" : language === "mr" ? "Key काढा" : "Clear Key"}
+                </Button>
               </div>
             )}
 

@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { 
   analyzeCropImageWithGemini, 
+  prepareImageForGemini,
   DiseaseAnalysisResult, 
   isGeminiConfigured, 
   getGeminiModel,
@@ -124,11 +125,17 @@ const DiseaseDetection: React.FC = () => {
     }
   };
 
-  const selectPreset = (preset: typeof SAMPLE_PRESETS[0]) => {
-    setSelectedImage(preset.dataUrl);
-    setImageMimeType("image/svg+xml");
-    setFileName(`${preset.id}.svg`);
-    setFileSize("Sample Test");
+  const selectPreset = async (preset: typeof SAMPLE_PRESETS[0]) => {
+    try {
+      const { base64Data, mimeType } = await prepareImageForGemini(preset.dataUrl, "image/svg+xml");
+      setSelectedImage(`data:${mimeType};base64,${base64Data}`);
+      setImageMimeType(mimeType);
+    } catch {
+      setSelectedImage(preset.dataUrl);
+      setImageMimeType("image/jpeg");
+    }
+    setFileName(`${preset.id}.jpg`);
+    setFileSize("Sample Test Specimen");
     setAnalysisResult(null);
   };
 
