@@ -282,6 +282,20 @@ const Settings: React.FC = () => {
               </p>
             </div>
 
+            {/* Note on Google AI Studio Free Tier Quotas */}
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-bold flex items-center gap-1.5 text-amber-950 dark:text-amber-100">
+                <span>💡</span> {language === "hi" ? "Gemini Pro सब्सक्रिप्शन बनाम API Key कोटा:" : language === "mr" ? "Gemini Pro सदस्यता विरुद्ध API Key कोटा:" : "Gemini Pro Subscription vs. API Key Quotas:"}
+              </p>
+              <p className="leading-relaxed">
+                {language === "hi"
+                  ? "gemini.google.com पर एक व्यक्तिगत Gemini Advanced/Pro सदस्यता Google AI Studio API keys से अलग होती है। Google AI Studio की मुफ्त API keys पर 'Pro' मॉडल में प्रति मिनट केवल 2 अनुरोधों की सीमा होती है। अधिक कोटा (15 अनुरोध/मिनट) के लिए ऊपर 'Gemini 2.0 Flash' चुनें।"
+                  : language === "mr"
+                  ? "gemini.google.com वरील वैयक्तिक Gemini Advanced/Pro सदस्यता Google AI Studio API keys पेक्षा वेगळी असते. Google AI Studio मोफत API keys वर 'Pro' मॉडेलसाठी प्रति मिनिट फक्त २ विनंत्यांची मर्यादा असते. जास्त मोफत कोट्यासाठी (१५ विनंत्या/मिनिट) वरील 'Gemini 2.0 Flash' निवडा."
+                  : "A consumer Gemini Advanced/Pro subscription (at gemini.google.com) is separate from developer API keys. All keys generated at aistudio.google.com start on the Free Tier where 'Pro' models have a strict limit of 2 requests/min. For higher free limits (15 requests/min and 1,500/day), select 'Gemini 2.0 Flash' above."}
+              </p>
+            </div>
+
             {isApiKeyConfigured && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm text-green-700 flex items-center gap-2">

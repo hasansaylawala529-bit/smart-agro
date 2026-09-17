@@ -101,43 +101,43 @@ export interface GeminiModelOption {
 
 export const AVAILABLE_GEMINI_MODELS: GeminiModelOption[] = [
   {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    badge: "Latest / Fastest",
-    description: "Google's latest multimodal model. Highest speed and accuracy for real-time Vision and Voice.",
-    recommended: true,
-  },
-  {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    badge: "Deep Reasoning",
-    description: "Advanced reasoning for complex plant pathology and multi-factor agronomic analysis.",
-  },
-  {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
-    badge: "High Throughput",
-    description: "Production-ready high throughput model with verified multimodal capabilities.",
-  },
-  {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
-    badge: "Large Context",
-    description: "Foundational flagship model with broad context memory.",
+    badge: "Recommended (High Quota)",
+    description: "Production-ready, ultra-fast model with 15 requests/min and 1,500 requests/day on free tier.",
+    recommended: true,
   },
   {
     id: "gemini-1.5-flash",
     name: "Gemini 1.5 Flash",
-    badge: "Lightweight",
-    description: "Fast, resource-efficient model for standard queries.",
+    badge: "Fast & Lightweight",
+    description: "Reliable, resource-efficient model with 15 requests/min free tier quota.",
+  },
+  {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    badge: "Latest Preview",
+    description: "Google's latest multimodal architecture for advanced reasoning and vision.",
+  },
+  {
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    badge: "Deep Reasoning (Low Quota)",
+    description: "Deep agronomic reasoning. Free tier has a strict limit of only 2 requests/min.",
+  },
+  {
+    id: "gemini-1.5-pro",
+    name: "Gemini 1.5 Pro",
+    badge: "Large Context (Low Quota)",
+    description: "Foundational flagship model. Free tier has a strict limit of only 2 requests/min.",
   },
 ];
 
 export const getGeminiModel = (): string => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("gemini_model") || "gemini-2.5-flash";
+    return localStorage.getItem("gemini_model") || "gemini-2.0-flash";
   }
-  return "gemini-2.5-flash";
+  return "gemini-2.0-flash";
 };
 
 export const setGeminiModel = (model: string): void => {
@@ -233,11 +233,16 @@ Base your crop and weather advice strictly on this real farm data above. Do NOT 
           return invalidKeyMessages[lang];
         }
         
-        if (error?.message?.includes('quota') || error?.message?.includes('rate')) {
+        if (
+          error?.message?.includes('quota') ||
+          error?.message?.includes('rate') ||
+          error?.message?.includes('429') ||
+          error?.message?.includes('RESOURCE_EXHAUSTED')
+        ) {
           const quotaMessages = {
-            en: "API quota exceeded. Please wait a moment and try again.",
-            hi: "API कोटा समाप्त हो गया। कृपया कुछ देर प्रतीक्षा करें और पुनः प्रयास करें।",
-            mr: "API कोटा संपला. कृपया थोडा वेळ थांबा आणि पुन्हा प्रयत्न करा."
+            en: "Google Gemini Free Tier Limit Reached (429). Google AI Studio free tier limits requests per minute (Pro models allow only 2 requests/min). Please wait 30–60 seconds, or switch to 'Gemini 2.0 Flash' in Settings for higher free quotas.",
+            hi: "Google Gemini फ्री टियर दर सीमा समाप्त (429)। Google AI Studio फ्री टियर प्रति मिनट अनुरोधों को सीमित करता है (Pro मॉडल में केवल 2 अनुरोध/मिनट)। कृपया 30-60 सेकंड प्रतीक्षा करें, या अधिक कोटा के लिए सेटिंग्स में 'Gemini 2.0 Flash' चुनें।",
+            mr: "Google Gemini फ्री टियर मर्यादा संपली (429). Google AI Studio मोफत टियरमध्ये प्रति मिनिट विनंत्या मर्यादित आहेत (Pro मॉडेलसाठी फक्त २ विनंत्या/मिनिट). कृपया ३०-६० सेकंद थांबा, किंवा जास्त मर्यादेसाठी सेटिंग्जमध्ये 'Gemini 2.0 Flash' निवडा."
           };
           return quotaMessages[lang];
         }
