@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,49 +6,76 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Cloud, Droplets, Wind, Thermometer, TrendingUp, TrendingDown,
-  AlertTriangle, Info, ShieldAlert, ArrowRight, Leaf, Store, Wheat,
-  Sun, CloudRain, MapPin, RefreshCw, Calendar, Loader2,
+  Wheat,
+  Store,
+  MapPin,
+  RefreshCw,
+  ArrowRight,
+  Droplets,
+  Sprout,
+  ShieldCheck,
+  AlertTriangle,
+  Loader2,
+  Sparkles,
+  Info,
 } from "lucide-react";
-import { soilData, cropRecommendation, alerts } from "@/data/mockData";
 import { Language } from "@/i18n/translations";
-import { useWeather, getWeatherIcon, formatWeatherDate } from "@/hooks/useWeather";
+import { useWeather } from "@/hooks/useWeather";
 import { useMandiPrices, formatPrice } from "@/hooks/useMandiPrices";
 import { useFarmLocation } from "@/contexts/FarmLocationContext";
+import { useSoil } from "@/contexts/SoilContext";
+import { useCropRecommendation } from "@/hooks/useCropRecommendation";
+import { WeatherCard } from "@/components/weather/WeatherCard";
+import { Forecast7Day } from "@/components/weather/Forecast7Day";
+import { AgriculturalInsightsCard } from "@/components/weather/AgriculturalInsightsCard";
+import { LocationSelectorModal } from "@/components/location/LocationSelectorModal";
+import { CropDetailModal } from "@/components/crop/CropDetailModal";
+import { CropRecommendationResult } from "@/services/cropRecommendationService";
 import farmerField from "@/assets/farmer-field.jpg";
 
 const Dashboard: React.FC = () => {
   const { language, t } = useLanguage();
   const navigate = useNavigate();
   const lang = language as Language;
-  
-  // Get farm location from context
-  const { location: farmLocation } = useFarmLocation();
-  
-  // Use farm location coordinates for weather
-  const { weather, loading: weatherLoading, refetch: refetchWeather } = useWeather(
-    farmLocation ? {
-      latitude: farmLocation.latitude,
-      longitude: farmLocation.longitude,
-      skipGeolocation: true,
-    } : undefined
-  );
-  
-  // Use farm location district for mandi data, fallback to Nagpur
-  const detectedDistrict = farmLocation?.district || weather?.location?.district || "Nagpur";
-  const { data: mandiData, loading: mandiLoading, usingFallback: mandiUsingFallback } = useMandiPrices({
+
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [selectedCropDetail, setSelectedCropDetail] = useState<CropRecommendationResult | null>(null);
+
+  // Contexts
+  const { location, districtInfo } = useFarmLocation();
+  const { soil, waterAvailability, isSimulated } = useSoil();
+
+  // Weather query using farm coordinates
+  const {
+    weather,
+    loading: weatherLoading,
+    error: weatherError,
+    refetch: refetchWeather,
+  } = useWeather({
+    latitude: location.latitude,
+    longitude: location.longitude,
+    district: location.district,
+  });
+
+  // Dynamic deterministic crop recommendation engine consuming location, weather, and soil!
+  const {
+    rankedCrops,
+    season,
+  } = useCropRecommendation();
+
+  const topThreeCrops = rankedCrops.slice(0, 3);
+
+  // Mandi prices for detected district
+  const { data: mandiData, loading: mandiLoading } = useMandiPrices({
     state: "Maharashtra",
-    district: detectedDistrict,
+    district: location.district,
     limit: 50,
   });
 
-  // Get top commodities from mandi data for display
   const topMandiPrices = useMemo(() => {
     if (!mandiData.length) return [];
-    
-    // Group by commodity and get the most recent/representative price
     const commodityMap = new Map<string, { commodity: string; modalPrice: number; market: string }>();
-    
+
     mandiData.forEach((item) => {
       const price = parseFloat(item.modal_price);
       if (!isNaN(price) && !commodityMap.has(item.commodity)) {
@@ -59,288 +86,300 @@ const Dashboard: React.FC = () => {
         });
       }
     });
-    
-    // Return top 3 commodities
+
     return Array.from(commodityMap.values()).slice(0, 3);
   }, [mandiData]);
 
-  // Get the nearest market name from mandi data
-  const nearestMarket = useMemo(() => {
-    if (mandiData.length > 0) {
-      return `${mandiData[0].market} APMC`;
-    }
-    return `${detectedDistrict} APMC`;
-  }, [mandiData, detectedDistrict]);
-
-  const getLocalizedCropName = (item: { name: string; nameHi: string; nameMr: string }) =>
-    lang === "hi" ? item.nameHi : lang === "mr" ? item.nameMr : item.name;
+  const medals = ["🥇", "🥈", "🥉"];
 
   return (
     <div className="space-y-6">
-      {/* Hero welcome banner */}
-      <div className="relative rounded-2xl overflow-hidden h-44 group">
+      {/* Hero Welcome Banner */}
+      <div className="relative rounded-2xl overflow-hidden h-44 group shadow-sm">
         <img
           src={farmerField}
           alt="Farm landscape"
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/85 via-primary/60 to-transparent" />
-        <div className="relative z-10 flex items-center h-full px-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/90 via-emerald-900/75 to-transparent" />
+        <div className="relative z-10 flex items-center justify-between h-full px-6 sm:px-8">
           <div>
-            <p className="text-primary-foreground/80 text-sm font-medium flex items-center gap-1.5">
-              {weatherLoading ? (
-                <span className="animate-pulse">Loading weather...</span>
-              ) : weather ? (
-                <>
-                  <span className="text-lg">{getWeatherIcon(weather.current.weatherCode)}</span>
-                  {weather.current.temperature}°C · {weather.current.humidity}% {t("dash.humidity")}
-                  <span className="ml-2 flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
-                    <MapPin className="h-3 w-3" />
-                    {weather.location.name}, {weather.location.district}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Sun className="h-4 w-4" />
-                  --°C · --% {t("dash.humidity")}
-                </>
-              )}
-            </p>
-            <h1 className="text-3xl font-poppins font-bold text-primary-foreground mt-1">
-              {t("dash.welcome")}, Ravi! 🌾
+            <div className="flex items-center gap-2 text-emerald-100 text-xs sm:text-sm font-medium">
+              <button
+                onClick={() => setIsLocationModalOpen(true)}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1 rounded-full text-xs transition-colors cursor-pointer"
+              >
+                <MapPin className="h-3.5 w-3.5 text-amber-300" />
+                <span className="font-semibold">{location.formattedAddress || `${location.district}, Maharashtra`}</span>
+                <span className="text-[10px] underline ml-1">
+                  ({lang === "hi" ? "बदलें" : lang === "mr" ? "बदला" : "Change"})
+                </span>
+              </button>
+
+              <Badge variant="outline" className="border-white/30 text-white text-[11px] bg-white/10 hidden sm:inline-flex">
+                {season} {lang === "hi" ? "मौसम" : lang === "mr" ? "हंगाम" : "Season"}
+              </Badge>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-poppins font-bold text-white mt-2">
+              {t("dash.welcome")}, Kisan! 🌾
             </h1>
-            <p className="text-primary-foreground/70 mt-1 text-sm max-w-md">
-              {t("dash.summary_line")}
+            <p className="text-emerald-100/80 mt-1 text-xs sm:text-sm max-w-lg line-clamp-2">
+              {lang === "hi"
+                ? "मौसम, मिट्टी और मौसम पूर्वानुमान के आधार पर वास्तविक कृषि सिफारिशें।"
+                : lang === "mr"
+                ? "हवामान, माती आणि पूर्वानुमानावर आधारित प्रत्यक्ष कृषी शिफारसी."
+                : "Real-time decision support driven by live localized weather and soil metrics."}
             </p>
           </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="hidden md:flex items-center gap-1.5 bg-white/90 text-emerald-950 hover:bg-white font-semibold text-xs shadow-md"
+          >
+            <MapPin className="h-3.5 w-3.5 text-primary" />
+            {lang === "hi" ? "खेत का स्थान" : lang === "mr" ? "शेताचे स्थान" : "Farm Location"}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        {/* Weather */}
-        <Card className="col-span-8 bg-card/95 backdrop-blur-sm border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-info/10 flex items-center justify-center">
-                  <Cloud className="h-5 w-5 text-info" />
-                </div>
-                {t("dash.weather")}
-                {weather && (
-                  <Badge variant="secondary" className="ml-2 text-xs font-normal">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {weather.location.name}
-                  </Badge>
-                )}
-              </span>
-              <Button variant="ghost" size="sm" onClick={refetchWeather} disabled={weatherLoading}>
-                <RefreshCw className={`h-4 w-4 ${weatherLoading ? "animate-spin" : ""}`} />
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {weatherLoading ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-4 gap-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-20 rounded-xl" />
-                  ))}
-                </div>
-                <Skeleton className="h-24 rounded-xl" />
-              </div>
-            ) : weather ? (
-              <div className="space-y-4">
-                {/* Current Weather */}
-                <div className="grid grid-cols-4 gap-3">
-                  {[
-                    { icon: Thermometer, color: "text-destructive", bg: "bg-destructive/10", label: t("dash.temp"), value: `${weather.current.temperature}°C` },
-                    { icon: Droplets, color: "text-info", bg: "bg-info/10", label: t("dash.humidity"), value: `${weather.current.humidity}%` },
-                    { icon: Wind, color: "text-muted-foreground", bg: "bg-muted", label: t("dash.wind"), value: `${weather.current.windSpeed} ${t("common.kmph")}` },
-                    { icon: CloudRain, color: "text-info", bg: "bg-info/10", label: t("dash.rain"), value: `${weather.daily[0]?.precipitationProbability || 0}%` },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/30">
-                      <div className={`h-8 w-8 rounded-lg ${item.bg} flex items-center justify-center`}>
-                        <item.icon className={`h-4 w-4 ${item.color}`} />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground leading-tight">{item.label}</p>
-                        <p className="text-lg font-inter font-bold leading-tight">{item.value}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* Main Grid: Weather & Agricultural Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Weather Card (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
+          <WeatherCard
+            weather={weather}
+            loading={weatherLoading}
+            error={weatherError}
+            locationAddress={location.formattedAddress || `${location.district}, Maharashtra`}
+            onRefresh={refetchWeather}
+            onChangeLocation={() => setIsLocationModalOpen(true)}
+          />
 
-                {/* 7-Day Forecast */}
-                <div className="bg-muted/20 rounded-xl p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {t("dash.forecast_7day")}
-                  </p>
-                  <div className="grid grid-cols-7 gap-2">
-                    {weather.daily.map((day, i) => (
-                      <div
-                        key={day.date}
-                        className={`text-center p-2 rounded-lg transition-colors ${
-                          i === 0 ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <p className="text-[10px] text-muted-foreground font-medium">
-                          {i === 0 ? t("dash.today") : formatWeatherDate(day.date, lang).split(",")[0]}
-                        </p>
-                        <p className="text-xl my-1">{getWeatherIcon(day.weatherCode)}</p>
-                        <p className="text-xs font-bold">{day.maxTemp}°</p>
-                        <p className="text-[10px] text-muted-foreground">{day.minTemp}°</p>
-                        {day.precipitationProbability > 20 && (
-                          <p className="text-[9px] text-info mt-0.5">💧{day.precipitationProbability}%</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Cloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{t("dash.weather_error")}</p>
-                <Button variant="outline" size="sm" onClick={refetchWeather} className="mt-2">
-                  {t("dash.retry")}
+          {/* 7-Day Forecast */}
+          <Forecast7Day daily={weather?.daily || []} loading={weatherLoading} />
+        </div>
+
+        {/* Agricultural Weather Intelligence & Farm Insights (5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Weather Insights Card */}
+          <AgriculturalInsightsCard
+            insights={weather?.insights}
+            loading={weatherLoading}
+          />
+
+          {/* Farm Information Summary (Spec section 24) */}
+          <Card className="bg-card/95 border-border/50 shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4 sm:px-6">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Sprout className="h-4 w-4 text-primary" />
+                  <span>{lang === "hi" ? "खेत और मिट्टी की स्थिति" : lang === "mr" ? "शेत व मातीची माहिती" : "Farm & Soil Profile"}</span>
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/soil")}
+                  className="h-7 text-xs text-primary px-2 hover:bg-primary/10"
+                >
+                  {lang === "hi" ? "संपादित करें" : lang === "mr" ? "बदल करा" : "Edit / Soil"} &rarr;
                 </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="p-4 pt-1 space-y-3">
+              {isSimulated && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-medium">
+                  <Info className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                  <span>{lang === "hi" ? "डेमो / सिम्युलेटेड सेंसर डेटा (वास्तविक IoT नहीं)" : lang === "mr" ? "डेमो / सिम्युलेटेड सेन्सर डेटा (प्रत्यक्ष IoT नाही)" : "Demo / Simulated Sensor Data"}</span>
+                </div>
+              )}
 
-        {/* Soil Health */}
-        <Card
-          className="col-span-4 cursor-pointer group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-card/95 backdrop-blur-sm border-border/50"
-          onClick={() => navigate("/soil")}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center">
-                  <Leaf className="h-5 w-5 text-warning" />
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-2 rounded-xl bg-muted/40 border border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">pH</p>
+                  <p className="text-base font-bold font-inter mt-0.5 text-foreground">{soil.ph}</p>
                 </div>
-                {t("dash.soil")}
-              </span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: t("dash.nitrogen"), value: soilData.nitrogen, color: soilData.nitrogen < 50 ? "bg-warning" : "bg-success" },
-              { label: t("dash.phosphorus"), value: soilData.phosphorus, color: "bg-success" },
-              { label: t("dash.potassium"), value: soilData.potassium, color: "bg-accent" },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">{item.label}</span>
-                  <span className="font-inter font-bold text-foreground">{item.value}%</span>
+                <div className="p-2 rounded-xl bg-muted/40 border border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">N</p>
+                  <p className="text-base font-bold font-inter mt-0.5 text-foreground">{soil.n}</p>
                 </div>
-                <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-1000 ${item.color}`}
-                    style={{ width: `${item.value}%` }}
-                  />
+                <div className="p-2 rounded-xl bg-muted/40 border border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">P</p>
+                  <p className="text-base font-bold font-inter mt-0.5 text-foreground">{soil.p}</p>
+                </div>
+                <div className="p-2 rounded-xl bg-muted/40 border border-border/40">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">K</p>
+                  <p className="text-base font-bold font-inter mt-0.5 text-foreground">{soil.k}</p>
                 </div>
               </div>
-            ))}
-            <div className="mt-2">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">{t("dash.ph")}</span>
-                <span className="font-inter font-bold">{soilData.ph}</span>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                <span>{lang === "hi" ? "पानी की उपलब्धता:" : lang === "mr" ? "पाण्याची उपलब्धता:" : "Water Availability:"}</span>
+                <span className="font-semibold text-foreground capitalize">
+                  {waterAvailability} {lang === "hi" ? "(मध्यम)" : lang === "mr" ? "(मध्यम)" : ""}
+                </span>
               </div>
-              <div className="h-3 bg-gradient-to-r from-destructive via-success to-info rounded-full relative">
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Core Feature 2: Integrated Crop Recommendation Section (Spec section 21 & 24) */}
+      <Card className="bg-card/95 border-border/50 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Wheat className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="text-lg font-bold">
+                  {lang === "hi"
+                    ? "मौसम और स्थान पर आधारित फसल सिफारिशें"
+                    : lang === "mr"
+                    ? "हवामान व स्थानावर आधारित पीक शिफारसी"
+                    : "Weather & Location Based Crop Recommendations"}
+                </CardTitle>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {lang === "hi"
+                  ? `आपके स्थान (${location.district}), मौसम (${season}), वर्तमान तापमान (${weather?.current.temperature ?? "--"}°C) और मिट्टी के आधार पर गणना की गई:`
+                  : lang === "mr"
+                  ? `आपल्या स्थानानुसार (${location.district}), हंगाम (${season}), सध्याचे तापमान (${weather?.current.temperature ?? "--"}°C) व मातीच्या गुणधर्मानुसार:`
+                  : `Calculated from live weather in ${location.district}, ${season} season, and soil profile:`}
+              </p>
+            </div>
+
+            <Button
+              onClick={() => navigate("/crop")}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9 self-start sm:self-auto"
+            >
+              <span>{lang === "hi" ? "सभी फसलें देखें" : lang === "mr" ? "सर्व पिके पहा" : "View All Recommendations"}</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {topThreeCrops.map((cropResult, idx) => {
+              const { crop, overallScore, category, explanations } = cropResult;
+              const cropName = lang === "hi" ? crop.nameHi : lang === "mr" ? crop.nameMr : crop.name;
+              const categoryLabel = lang === "hi" ? cropResult.categoryHi : lang === "mr" ? cropResult.categoryMr : category;
+
+              const categoryBadge =
+                overallScore >= 80
+                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                  : overallScore >= 60
+                  ? "bg-blue-500/10 text-blue-700 border-blue-500/20"
+                  : "bg-amber-500/10 text-amber-700 border-amber-500/20";
+
+              return (
                 <div
-                  className="absolute h-5 w-1.5 bg-foreground rounded-full top-1/2 -translate-y-1/2 shadow-md"
-                  style={{ left: `${((soilData.ph - 3) / 11) * 100}%` }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  key={crop.id}
+                  onClick={() => setSelectedCropDetail(cropResult)}
+                  className="group cursor-pointer p-4 rounded-xl border border-border/60 hover:border-primary/50 hover:shadow-md transition-all duration-200 bg-card flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl shrink-0">{medals[idx]}</span>
+                        <span className="text-3xl p-1.5 rounded-xl bg-primary/10 border border-primary/15">
+                          {crop.emoji}
+                        </span>
+                        <div>
+                          <h4 className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                            {cropName}
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground">
+                            {crop.growingPeriodDays}
+                          </p>
+                        </div>
+                      </div>
 
-        {/* Crop Recommendation */}
-        <Card
-          className="col-span-4 cursor-pointer group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-card/95 backdrop-blur-sm border-border/50"
-          onClick={() => navigate("/crop")}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Wheat className="h-5 w-5 text-primary" />
+                      <div className="text-right shrink-0">
+                        <span className="text-2xl font-black font-inter text-primary">
+                          {overallScore}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <Badge variant="outline" className={`text-[10px] font-semibold ${categoryBadge}`}>
+                        {categoryLabel}
+                      </Badge>
+                    </div>
+
+                    {/* Top Why bullet */}
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+                      ✓ {explanations[0]?.text[lang] || crop.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-primary font-medium group-hover:translate-x-0.5 transition-transform">
+                    <span>{lang === "hi" ? "विस्तृत रिपोर्ट देखें" : lang === "mr" ? "सविस्तर माहिती पहा" : "Inspect Why & Timeline"}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
                 </div>
-                {t("dash.crop_rec")}
-              </span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center mb-3 p-3 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/10">
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{t("dash.primary_crop")}</p>
-              <p className="text-2xl font-poppins font-bold text-primary mt-0.5">{getLocalizedCropName(cropRecommendation.primary)}</p>
-              <div className="flex items-center justify-center gap-1.5 mt-1">
-                <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                <p className="text-sm font-inter text-success font-semibold">{cropRecommendation.primary.suitability}% match</p>
-              </div>
-            </div>
-            <div className="text-center mb-3 p-2.5 bg-muted/40 rounded-xl">
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{t("dash.intercrop")}</p>
-              <p className="text-lg font-medium mt-0.5">{getLocalizedCropName(cropRecommendation.intercrop)}</p>
-            </div>
-            <div className="text-sm text-muted-foreground bg-primary/5 p-2.5 rounded-xl border border-primary/5">
-              <p className="font-semibold text-primary text-xs mb-1">💡 {t("dash.why")}</p>
-              <p className="text-xs leading-relaxed">{cropRecommendation.reason[lang]}</p>
-            </div>
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Market */}
+      {/* Secondary Integrations: Mandi Snapshot & Market Trends */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+        {/* Mandi Prices (7 cols) */}
         <Card
-          className="col-span-7 cursor-pointer group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-card/95 backdrop-blur-sm border-border/50"
+          className="md:col-span-7 cursor-pointer group hover:shadow-md transition-all bg-card/95 border-border/50"
           onClick={() => navigate("/market")}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <Store className="h-5 w-5 text-accent-foreground" />
+                <div className="h-8 w-8 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <Store className="h-4 w-4 text-accent-foreground" />
                 </div>
-                {t("dash.market")}
+                <span>{t("dash.market")}</span>
               </span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
-              {t("dash.mandi")}:{" "}
+            <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+              <span>{t("dash.mandi")}:</span>
               <span className="font-semibold text-foreground flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-primary" />
-                {nearestMarket}
+                <MapPin className="h-3 w-3 text-primary" />
+                {location.district} APMC
               </span>
-              {mandiLoading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+              {mandiLoading && <Loader2 className="h-3 w-3 animate-spin ml-1 text-primary" />}
             </p>
+
             {mandiLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-14 rounded-xl" />
+                  <Skeleton key={i} className="h-12 rounded-xl" />
                 ))}
               </div>
             ) : topMandiPrices.length > 0 ? (
               <div className="space-y-2">
                 {topMandiPrices.map((item) => (
-                  <div key={item.commodity} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl hover:bg-muted/40 transition-colors">
+                  <div
+                    key={item.commodity}
+                    className="flex items-center justify-between p-2.5 bg-muted/20 rounded-xl hover:bg-muted/40 transition-colors"
+                  >
                     <div>
-                      <span className="font-medium">{item.commodity}</span>
-                      <p className="text-xs text-muted-foreground">{item.market}</p>
+                      <span className="font-medium text-sm">{item.commodity}</span>
+                      <p className="text-[11px] text-muted-foreground">{item.market}</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-inter font-bold text-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="font-inter font-bold text-base">
                         {formatPrice(item.modalPrice.toString())}
-                        <span className="text-xs text-muted-foreground font-normal">/qtl</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">/qtl</span>
                       </span>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px]">
                         {t("dash.live")}
                       </Badge>
                     </div>
@@ -350,41 +389,61 @@ const Dashboard: React.FC = () => {
             ) : (
               <div className="text-center py-6 text-muted-foreground">
                 <Store className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{t("dash.no_mandi_data")}</p>
+                <p className="text-xs">{t("dash.no_mandi_data")}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Alerts */}
-        <Card className="col-span-5 bg-card/95 backdrop-blur-sm border-border/50">
+        {/* Advisory Safety & Best Practices (5 cols) */}
+        <Card className="md:col-span-5 bg-card/95 border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-warning" />
+              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <ShieldCheck className="h-4 w-4 text-primary" />
               </div>
-              {t("dash.alerts")}
+              <span>{lang === "hi" ? "कृषि सुरक्षा और दिशानिर्देश" : lang === "mr" ? "कृषी सुरक्षा व मार्गदर्शन" : "Agronomic Safety & Standards"}</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {alerts.map((alert, i) => (
-              <div
-                key={i}
-                className={`flex items-start gap-3 p-3 rounded-xl border-l-4 transition-colors hover:shadow-sm ${
-                  alert.type === "danger" ? "bg-destructive/5 border-destructive" :
-                  alert.type === "warning" ? "bg-warning/5 border-warning" :
-                  "bg-info/5 border-info"
-                }`}
-              >
-                {alert.type === "danger" ? <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" /> :
-                 alert.type === "warning" ? <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" /> :
-                 <Info className="h-5 w-5 text-info shrink-0 mt-0.5" />}
-                <p className="text-sm leading-relaxed">{alert.message[lang]}</p>
-              </div>
-            ))}
+          <CardContent className="space-y-2.5 text-xs text-muted-foreground pt-1">
+            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+              <p className="font-semibold text-foreground text-xs mb-1">
+                📌 {lang === "hi" ? "पारदर्शी सिफारिश प्रणाली" : lang === "mr" ? "पारदर्शक शिफारस प्रणाली" : "Transparent Scoring"}
+              </p>
+              <p className="leading-relaxed">
+                {lang === "hi"
+                  ? "सभी फसल सिफारिशें मौसम (25%), वर्षा (20%), तापमान (15%), मिट्टी (15%) और सीजन (10%) के सत्यापित गणितीय सूत्र पर आधारित हैं।"
+                  : lang === "mr"
+                  ? "सर्व पीक शिफारसी हवामान (२५%), पाऊस (२०%), तापमान (१५%), माती (१५%) आणि हंगाम (१०%) च्या पारदर्शक सूत्रावर आधारित आहेत."
+                  : "All crop scores are deterministically computed based on regional agro-climatic requirements and Open-Meteo live weather data."}
+              </p>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+              <p className="font-semibold text-foreground text-xs mb-1">
+                💧 {lang === "hi" ? "सिंचाई प्रबंधन" : lang === "mr" ? "पाणी व्यवस्थापन" : "Water Management"}
+              </p>
+              <p className="leading-relaxed">
+                {weather?.insights.rainExpectedTomorrow
+                  ? (lang === "hi" ? "कल बारिश अपेक्षित है। भूमिगत जल और बिजली की बचत के लिए सिंचाई टालें।" : lang === "mr" ? "उद्या पाऊस अपेक्षित आहे. सिंचन पुढे ढकला." : "Rain is expected tomorrow. Postpone scheduled irrigation.")
+                  : (lang === "hi" ? "मौसम शुष्क है। फसल की अवस्था अनुसार नियमित सिंचाई करें।" : lang === "mr" ? "हवामान कोरडे आहे. पिकाच्या गरजेनुसार पाणी द्या." : "Stable weather. Maintain normal crop-specific irrigation schedule.")}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <LocationSelectorModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+      />
+
+      <CropDetailModal
+        cropResult={selectedCropDetail}
+        isOpen={Boolean(selectedCropDetail)}
+        onClose={() => setSelectedCropDetail(null)}
+      />
     </div>
   );
 };

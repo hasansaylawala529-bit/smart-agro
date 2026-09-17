@@ -5,28 +5,82 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646cff?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38b2ac?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-2.0_Flash-8e75ff?style=flat-square&logo=google)](https://ai.google.dev/)
 
-An intelligent, cloud-enabled precision agriculture advisory platform engineered specifically for Indian farmers, featuring localized intelligence across all **36 districts of Maharashtra** with complete trilingual support (**English**, **हिंदी**, **मराठी**).
-
-🌐 **Live Application:** [https://smart-agro-ashy-one.vercel.app/](https://smart-agro-ashy-one.vercel.app/)
+An intelligent precision agriculture decision-support platform engineered specifically for Indian farmers across all **36 districts of Maharashtra** with complete trilingual support (**English**, **हिंदी**, **मराठी**).
 
 ---
 
-## 🌟 Key Features
+## 🎯 Official Problem Statement
+> **"Build a platform that provides farmers with localized weather forecasts and crop recommendations."**
 
-### 1. 🌦️ Hyper-Local Weather Intelligence
-- Real-time weather monitoring powered by the **Open-Meteo API** (no API key required).
-- Accurate 7-day agricultural forecasts, humidity, wind velocity, precipitation likelihood, UV index, and WMO meteorological condition codes.
-- Automatic farm geolocation detection via browser GPS & OpenStreetMap reverse geocoding.
+Smart Agro AI fulfills this mission by creating a direct, reactive link between **farm location**, **live weather conditions**, **soil chemistry**, and a **transparent, deterministic crop suitability engine**.
 
-### 2. 🧪 Real-Time Soil Health & NPK Telemetry
-- Live simulated IoT sensor telemetry measuring Nitrogen (N), Phosphorus (P), Potassium (K), and soil pH levels.
-- Interactive SVG radial gauges with real-time calibration indicators.
-- Actionable agronomic recommendations (e.g., lime application for acidic soil, legume rotation for nitrogen balance).
+---
 
-### 3. 🌱 AI Crop Planning & Intercropping Strategy
-- Crop suitability scoring matrix for Kharif and Rabi seasons tailored to local soil parameters.
+## 📐 System Architecture
+
+```
+Farmer Farm Location (Browser GPS / 36 Maharashtra Districts)
+        ↓
+Reverse Geocoding (OpenStreetMap Nominatim with caching)
+        ↓
+Local Weather API (Open-Meteo 7-Day Forecast & Live Readings)
+        ↓
+Agricultural Weather Intelligence (Irrigation Delays, Fungal Risk, Heat Stress)
+        ↓
+Deterministic Crop Recommendation Engine (Transparent 0–100 Weighted Scoring)
+        ↓
+Explainable Farmer Advisory (Why This Crop? • Cultivation Timeline • Requirements)
+```
+
+---
+
+## ⚖️ Transparent Crop Suitability Scoring Engine
+
+Crop recommendations are **never randomly generated or hallucinated by an LLM**. Instead, they are computed deterministically using an agronomically verified weighted formula:
+
+$$\text{Final Suitability Score} = 0.25 \times \text{Climate} + 0.20 \times \text{Rainfall} + 0.15 \times \text{Temperature} + 0.15 \times \text{Soil} + 0.10 \times \text{Season} + 0.10 \times \text{Water} + 0.05 \times \text{Humidity}$$
+
+### Suitability Categories:
+- **Highly Suitable (80 – 100%)**: Optimal fit for current weather, soil, and season.
+- **Suitable (60 – 79%)**: Well-adapted with standard agronomic management.
+- **Moderately Suitable (40 – 59%)**: Minor limitations (e.g. requires supplemental irrigation or fertilizer).
+- **Low Suitability (< 40%)**: Agronomically or seasonally unsuited.
+
+Every recommendation provides full **Explainability**:
+- **Positive Factors (✓)**: e.g., *"Current temperature (26°C) is within optimal range (22–30°C)"*, *"Legume crop restores soil nitrogen"*.
+- **Cautionary Warnings (⚠)**: e.g., *"Expected rainfall is slightly below preferred range"*, *"Acidic soil (pH < 5.0) requires agricultural lime application"*.
+
+---
+
+## 🌟 Core Features
+
+### 1. 📍 Robust Location System
+- **Option A — Browser GPS**: Auto-detects farm coordinates with high accuracy.
+- **Option B — Manual District Selection**: Complete coverage for all **36 Maharashtra districts** and talukas.
+- **Reverse Geocoding**: Displays human-readable locations (*"Khed, Pune, Maharashtra, India"*) with local caching to eliminate redundant API requests.
+
+### 2. 🌦️ Localized Weather & 7-Day Forecast
+- Real-time weather via **Open-Meteo API** (temperature, humidity, rain chance, wind speed, UV index, cloud cover).
+- 7-day daily forecast strip with maximum/minimum temperatures and precipitation likelihood.
+- Cached using `@tanstack/react-query` (5-minute fresh cache, zero duplicate calls on re-renders).
+
+### 3. 🧠 Agricultural Weather Intelligence
+- 🌧 **Rain Advisory**: Automatically alerts if rain is expected tomorrow and advises delaying irrigation.
+- 🌡 **High Temperature / Heat Stress**: Flags days above 36°C with soil evapotranspiration reminders.
+- 💧 **High Humidity / Fungal Risk**: Identifies humidity thresholds (>75-80%) conducive to blast and leaf blight.
+- ⚠️ **Heavy Rainfall Drainage**: Advises clearing drainage furrows before heavy cloudbursts.
+- ☀️ **Dry Spell Planning**: Forecasts dry intervals so farmers can plan drip cycles.
+
+### 4. 🧪 Soil Analysis & Data Integrity Modes
+- **Mode 1 — Manual Input**: Farmers enter verified lab test results (N, P, K, pH).
+- **Mode 2 — Demo Sensor Telemetry**: Clearly labeled with a prominent **"Demo / Simulated Sensor Data"** banner to maintain strict data integrity.
+- Real-time dynamic soil health interpretations for acidic, alkaline, and nutrient-deficient soils.
+
+### 5. 🌾 Crop Planner & Detail Modal
+- Unified recommendation workflow in `/crop` featuring ranked crops (Soybean, Cotton, Rice, Wheat, Tur, Chana, Maize, Sugarcane, Jowar, Bajra, Groundnut, Onion, Tomato, Potato, Moong, Urad).
+- Interactive modals displaying component score bars, agronomic requirements, cultivation timelines, and farming tips.
+- Preserved secondary tools: **Intercropping Pairs** and **Fertilizer Schedules**.
 - Companion planting pairs (e.g., Soybean + Pigeon Pea, Cotton + Black Gram) with symbiotic soil benefit timelines.
 - 4-stage fertilizer management timeline (Sowing, Vegetative, Flowering, and Pod Formation).
 
@@ -147,11 +201,37 @@ smart-agro/
 
 ---
 
-## 🔑 Optional: Gemini API Key Setup
-The application works out of the box with built-in agricultural knowledge and fallbacks. To activate live Gemini 2.0 Flash AI voice responses:
-1. Obtain a free API key from [Google AI Studio](https://aistudio.google.com/).
-2. Navigate to **Settings** (`/settings`) in the application.
-3. Paste your Gemini API key and click **Save**. The key is stored locally and securely in your browser's `localStorage`.
+---
+
+## 🔑 Environment Variables
+The application works completely out of the box with zero required API keys (Open-Meteo and OpenStreetMap are free public APIs).
+
+To optionally activate live Gemini AI voice features via environment file:
+1. Copy `.env.example` to `.env`:
+   ```sh
+   cp .env.example .env
+   ```
+2. Add your key:
+   ```env
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+*(Alternatively, farmers can paste their key directly into the in-app Settings page without touching code).*
+
+---
+
+## 🧪 Testing
+Run the automated unit test suite covering the deterministic scoring engine, weather intelligence advisories, and edge cases:
+```sh
+npm test
+```
+
+---
+
+## ⚠️ Agronomic Limitations & Disclaimers
+1. **Advisory Signals, Not Guarantees**: Crop recommendations, suitability scores, and timelines are advisory decision-support tools derived from agro-climatic standards (ICAR / MPKV Rahuri). They do not constitute financial or legal yield guarantees.
+2. **Meteorological API Accuracy**: Local weather forecasts are sourced in real time from Open-Meteo. Actual micro-climate rainfall in localized farm pockets may vary.
+3. **Data Quality Dependence**: The reliability of crop recommendations depends on the accuracy of user-provided soil tests (N, P, K, pH) and seasonal inputs.
+4. **Simulated Sensor Telemetry**: The IoT sensor simulation in Soil Analysis is provided for interface testing and demonstration; simulated values are explicitly flagged and must not be treated as physical in-situ sensor data.
 
 ---
 

@@ -76,6 +76,41 @@ export const translations: Record<string, Record<Language, string>> = {
   "crop.stage": { en: "Stage", hi: "चरण", mr: "टप्पा" },
   "crop.fertilizer_type": { en: "Fertilizer", hi: "उर्वरक", mr: "खत" },
   "crop.dosage": { en: "Dosage", hi: "खुराक", mr: "मात्रा" },
+  "crop.recommendations": { en: "Crop Recommendations", hi: "फसल सिफारिशें", mr: "पीक शिफारसी" },
+  "crop.highly_suitable": { en: "Highly Suitable", hi: "अत्यधिक उपयुक्त", mr: "अत्यंत योग्य" },
+  "crop.suitable_label": { en: "Suitable", hi: "उपयुक्त", mr: "योग्य" },
+  "crop.moderately_suitable": { en: "Moderately Suitable", hi: "मध्यम उपयुक्त", mr: "मध्यम योग्य" },
+  "crop.low_suitability": { en: "Low Suitability", hi: "कम उपयुक्त", mr: "कमी योग्यता" },
+  "crop.farmer_form": { en: "Farmer Input Form", hi: "किसान इनपुट फॉर्म", mr: "शेतकरी माहिती फॉर्म" },
+  "crop.score_breakdown": { en: "Suitability Score Breakdown", hi: "स्कोर विश्लेषण", mr: "स्कोअर विश्लेषण" },
+  "crop.why_this_crop": { en: "Why This Crop?", hi: "यह फसल क्यों?", mr: "हे पीक का?" },
+  "crop.agronomic_req": { en: "Agronomic Requirements", hi: "कृषि संबंधी आवश्यकताएं", mr: "कृषीविषयक आवश्यकता" },
+  "crop.cultivation_timeline": { en: "Cultivation Timeline", hi: "फसल विकास समयरेखा", mr: "पीक वाढ वेळापत्रक" },
+  "crop.water_req": { en: "Water Requirement", hi: "पानी की आवश्यकता", mr: "पाण्याची गरज" },
+  "crop.growing_season": { en: "Growing Season", hi: "बढ़ने का मौसम", mr: "हंगाम" },
+  "crop.get_recommendations": { en: "Get Recommendations", hi: "फसल सिफारिशें प्राप्त करें", mr: "पीक शिफारसी मिळवा" },
+  "crop.inspect_why": { en: "Inspect Why & Timeline", hi: "कारण और समयरेखा देखें", mr: "कारण व वेळापत्रक पहा" },
+
+  // Weather Intelligence & Advisories
+  "weather.rain_advisory": { en: "Rain Expected Tomorrow", hi: "कल बारिश की संभावना", mr: "उद्या पावसाची शक्यता" },
+  "weather.irrigation_delay": { en: "Delay Irrigation", hi: "सिंचाई टालें", mr: "सिंचन पुढे ढकला" },
+  "weather.plan_irrigation": { en: "Plan Irrigation", hi: "सिंचाई नियोजित करें", mr: "सिंचनाचे नियोजन करा" },
+  "weather.heavy_rain": { en: "Heavy Rain Alert", hi: "भारी वर्षा चेतावनी", mr: "मुसळधार पाऊस इशारा" },
+  "weather.high_temp": { en: "High Temperature", hi: "उच्च तापमान चेतावनी", mr: "उच्च तापमानाचा इशारा" },
+  "weather.fungal_risk": { en: "High Humidity - Fungal Risk", hi: "अधिक आर्द्रता - फफूंद रोग जोखिम", mr: "जास्त आर्द्रता - बुरशीजन्य रोगांचा धोका" },
+  "weather.dry_spell": { en: "Dry Spell Forecast", hi: "शुष्क मौसम का पूर्वानुमान", mr: "कोरड्या हवामानाचा अंदाज" },
+  "weather.sowing_favorable": { en: "Favorable Sowing Window", hi: "बुवाई के लिए अनुकूल मौसम", mr: "पेरणीसाठी पोषक वातावरण" },
+
+  // Soil & Data Integrity
+  "soil.demo_sensor_badge": { en: "Demo / Simulated Sensor Data", hi: "डेमो / सिम्युलेटेड सेंसर डेटा", mr: "डेमो / सिम्युलेटेड सेन्सर डेटा" },
+  "soil.manual_mode": { en: "Manual Mode", hi: "मैन्युअल मोड", mr: "मॅन्युअल मोड" },
+  "soil.simulated_mode": { en: "Demo Sensor Mode", hi: "डेमो सेंसर मोड", mr: "डेमो सेन्सर मोड" },
+  "soil.save_params": { en: "Save Parameters & Sync", hi: "मापदंड सहेजें और सिंक करें", mr: "माती डेटा जतन करा व सिंक करा" },
+
+  // Location
+  "location.select_farm": { en: "Select Farm Location", hi: "खेत का स्थान चुनें", mr: "शेताचे स्थान निवडा" },
+  "location.gps_detect": { en: "Detect GPS", hi: "GPS द्वारा खोजें", mr: "GPS द्वारे शोधा" },
+  "location.all_districts": { en: "All 36 Districts", hi: "सभी 36 जिले", mr: "सर्व ३६ जिल्हे" },
 
   // Disease
   "disease.title": { en: "Disease Detection", hi: "रोग पहचान", mr: "रोग ओळख" },

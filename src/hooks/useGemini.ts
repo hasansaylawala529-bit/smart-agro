@@ -1,14 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Default Gemini API key - users can override in Settings
-const DEFAULT_API_KEY = "YOUR_OWN_API_KEY_HERE"; // Get your API key from https://ai.google.dev
-
-// Get API key from localStorage or use default
+// Get Gemini API key from environment variable or localStorage (configured via Settings)
 const getApiKey = (): string => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('gemini_api_key') || DEFAULT_API_KEY;
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && envKey !== 'your_gemini_api_key_here' && envKey !== 'YOUR_OWN_API_KEY_HERE') {
+      return envKey;
+    }
+    return localStorage.getItem('gemini_api_key') || '';
   }
-  return DEFAULT_API_KEY;
+  return '';
 };
 
 const getSystemPrompt = (lang: "en" | "hi" | "mr", farmLocation: string) => {
@@ -83,11 +84,19 @@ Respond naturally and helpfully in English.`,
   return prompts[lang];
 };
 
+export interface FarmAgriContext {
+  weather?: string;
+  soil?: string;
+  season?: string;
+  recommendedCrops?: string;
+}
+
 export async function getGeminiResponse(
   userMessage: string,
   lang: "en" | "hi" | "mr",
   farmLocation: string,
-  conversationHistory: { role: "user" | "model"; text: string }[] = []
+  conversationHistory: { role: "user" | "model"; text: string }[] = [],
+  agriContext?: FarmAgriContext
 ): Promise<string> {
   const apiKey = getApiKey();
   
@@ -104,7 +113,20 @@ export async function getGeminiResponse(
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
-    const systemPrompt = getSystemPrompt(lang, farmLocation);
+    let systemPrompt = getSystemPrompt(lang, farmLocation);
+
+    // Inject verified deterministic context (Spec section 38 & 39)
+    if (agriContext) {
+      systemPrompt += `\n\nVerified Farm Data:
+- Location: ${farmLocation}, Maharashtra
+- Current Weather: ${agriContext.weather || "Not available"}
+- Current Season: ${agriContext.season || "Not available"}
+- Soil Parameters: ${agriContext.soil || "Not available"}
+- Top Deterministically Recommended Crops: ${agriContext.recommendedCrops || "Not available"}
+
+IMPORTANT INSTRUCTION:
+Base your crop and weather advice strictly on this real farm data above. Do NOT invent fictional weather conditions or disagree with the deterministic crop suitability rankings. Explain the reasons to the farmer simply.`;
+    }
     
     // Build context from history
     const historyContext = conversationHistory.slice(-4).map(msg => 

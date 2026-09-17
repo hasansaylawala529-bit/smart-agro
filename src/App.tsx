@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { FarmLocationProvider } from "@/contexts/FarmLocationContext";
+import { SoilProvider } from "@/contexts/SoilContext";
 import MainLayout from "@/components/layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import SoilAnalysis from "./pages/SoilAnalysis";
@@ -24,27 +25,29 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
       <FarmLocationProvider>
-        <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <MainLayout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/soil" element={<SoilAnalysis />} />
-              <Route path="/crop" element={<CropPlanner />} />
-              <Route path="/disease" element={<DiseaseDetection />} />
-              <Route path="/yield" element={<YieldForecast />} />
-              <Route path="/market" element={<MarketAdvisor />} />
-              <Route path="/schemes" element={<GovSchemes />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MainLayout>
-        </BrowserRouter>
-        </TooltipProvider>
+        <SoilProvider>
+          <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <MainLayout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/soil" element={<SoilAnalysis />} />
+                <Route path="/crop" element={<CropPlanner />} />
+                <Route path="/disease" element={<DiseaseDetection />} />
+                <Route path="/yield" element={<YieldForecast />} />
+                <Route path="/market" element={<MarketAdvisor />} />
+                <Route path="/schemes" element={<GovSchemes />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </MainLayout>
+          </BrowserRouter>
+          </TooltipProvider>
+        </SoilProvider>
       </FarmLocationProvider>
     </LanguageProvider>
   </QueryClientProvider>

@@ -10,7 +10,9 @@ import {
   Bot, User, Loader2, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getGeminiResponse } from "@/hooks/useGemini";
+import { getGeminiResponse, FarmAgriContext } from "@/hooks/useGemini";
+import { useSoil } from "@/contexts/SoilContext";
+import { useCropRecommendation } from "@/hooks/useCropRecommendation";
 
 interface Message {
   id: string;
@@ -27,7 +29,16 @@ interface ConversationMessage {
 const VoiceBot: React.FC = () => {
   const { language } = useLanguage();
   const { location } = useFarmLocation();
+  const { soil } = useSoil();
+  const { rankedCrops, season, weather } = useCropRecommendation();
   const lang = language as "en" | "hi" | "mr";
+
+  const agriContext: FarmAgriContext = {
+    weather: weather ? `${weather.current.temperature}°C, ${weather.current.weatherDescription}, Humidity: ${weather.current.humidity}%, Rain chance: ${weather.daily[0]?.precipitationProbability ?? 0}%` : undefined,
+    soil: `pH: ${soil.ph}, Nitrogen: ${soil.n}%, Phosphorus: ${soil.p}%, Potassium: ${soil.k}%`,
+    season: `${season} season`,
+    recommendedCrops: rankedCrops.slice(0, 4).map((r, i) => `${i + 1}. ${r.crop.name} (${r.overallScore}% suitability)`).join(", "),
+  };
   
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -174,8 +185,8 @@ const VoiceBot: React.FC = () => {
     ];
 
     try {
-      // Get response from Gemini AI
-      const response = await getGeminiResponse(text, lang, location.district, newHistory);
+      // Get response from Gemini AI with verified deterministic farm context
+      const response = await getGeminiResponse(text, lang, location.district, newHistory, agriContext);
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
