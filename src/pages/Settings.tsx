@@ -9,13 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Globe, Scale, MapPin, Wifi, RefreshCw, Save, CheckCircle, Loader2, Navigation, AlertCircle, Bot, Key, ExternalLink, Sparkles } from "lucide-react";
 import { Language } from "@/i18n/translations";
+import { cn } from "@/lib/utils";
 import { 
   setGeminiApiKey, 
   isGeminiConfigured, 
   getGeminiApiKeyMasked,
   AVAILABLE_GEMINI_MODELS,
   getGeminiModel,
-  setGeminiModel
+  setGeminiModel,
+  getApiKey,
+  fetchLiveGeminiModels,
+  GeminiModelOption
 } from "@/hooks/useGemini";
 
 const Settings: React.FC = () => {
@@ -26,18 +30,45 @@ const Settings: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.8-flash");
+  const [modelList, setModelList] = useState<GeminiModelOption[]>(AVAILABLE_GEMINI_MODELS);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  const refreshLiveModels = async (keyToUse?: string) => {
+    const key = keyToUse || getApiKey();
+    if (!key) return;
+    setIsLoadingModels(true);
+    try {
+      const live = await fetchLiveGeminiModels(key);
+      if (live.length > 0) {
+        setModelList(live);
+        const current = getGeminiModel();
+        if (!live.some(m => m.id === current)) {
+          const fallback = live.find(m => m.recommended)?.id || live[0].id;
+          setSelectedModel(fallback);
+          setGeminiModel(fallback);
+        }
+      }
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
 
   useEffect(() => {
     setIsApiKeyConfigured(isGeminiConfigured());
     setSelectedModel(getGeminiModel());
+    if (isGeminiConfigured()) {
+      refreshLiveModels();
+    }
   }, []);
 
   const handleSaveApiKey = () => {
     if (apiKey.trim().length > 0) {
-      setGeminiApiKey(apiKey);
+      const keyToSave = apiKey.trim();
+      setGeminiApiKey(keyToSave);
       setIsApiKeyConfigured(true);
       setApiKey("");
+      refreshLiveModels(keyToSave);
       toast({ title: language === "hi" ? "API Key सहेजी गई!" : language === "mr" ? "API Key जतन झाली!" : "API Key saved!" });
     }
   };
@@ -46,6 +77,9 @@ const Settings: React.FC = () => {
     setGeminiApiKey("");
     setIsApiKeyConfigured(false);
     setApiKey("");
+    setModelList(AVAILABLE_GEMINI_MODELS);
+    setSelectedModel("gemini-3.8-flash");
+    setGeminiModel("gemini-3.8-flash");
     toast({ 
       title: language === "hi" ? "API Key हटा दी गई" : language === "mr" ? "API Key काढली" : "API Key Cleared",
       description: language === "hi" ? "अब आप नई key दर्ज कर सकते हैं" : language === "mr" ? "आता नवीन key प्रविष्ट करू शकता" : "You can now enter a fresh API key."
@@ -57,7 +91,7 @@ const Settings: React.FC = () => {
     setGeminiModel(modelId);
     toast({ 
       title: language === "hi" ? "AI मॉडल अपडेट हुआ!" : language === "mr" ? "AI मॉडेल अपडेट झाले!" : "AI Model Updated!",
-      description: AVAILABLE_GEMINI_MODELS.find(m => m.id === modelId)?.name || modelId
+      description: modelList.find(m => m.id === modelId)?.name || modelId
     });
   };
 
@@ -261,9 +295,24 @@ const Settings: React.FC = () => {
                   <Sparkles className="h-4 w-4 text-purple-600" />
                   {language === "hi" ? "AI मॉडल (वॉयस बॉट व विजन डायग्नोस्टिक्स):" : language === "mr" ? "AI मॉडेल (व्हॉइस बॉट आणि व्हिजनसाठी):" : "AI Foundation Model (Voice Bot & Vision):"}
                 </label>
-                <Badge variant="outline" className="text-xs bg-white text-purple-700 border-purple-300 font-semibold">
-                  {AVAILABLE_GEMINI_MODELS.find(m => m.id === selectedModel)?.badge || "Selected"}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  {isApiKeyConfigured && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refreshLiveModels()}
+                      disabled={isLoadingModels}
+                      title="Fetch live active models from Google AI Studio"
+                      className="h-6 px-2 text-[11px] text-purple-700 hover:bg-purple-100/80"
+                    >
+                      <RefreshCw className={cn("h-3 w-3 mr-1", isLoadingModels && "animate-spin")} />
+                      {isLoadingModels ? "Syncing..." : "Sync Live"}
+                    </Button>
+                  )}
+                  <Badge variant="outline" className="text-xs bg-white text-purple-700 border-purple-300 font-semibold">
+                    {modelList.find(m => m.id === selectedModel)?.badge || "Active"}
+                  </Badge>
+                </div>
               </div>
 
               <Select value={selectedModel} onValueChange={handleModelChange}>
@@ -271,7 +320,7 @@ const Settings: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_GEMINI_MODELS.map((m) => (
+                  {modelList.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       <div className="flex items-center gap-2 py-0.5">
                         <span className="font-medium">{m.name}</span>
@@ -288,7 +337,7 @@ const Settings: React.FC = () => {
               </Select>
 
               <p className="text-xs text-purple-800/80 pt-0.5">
-                {AVAILABLE_GEMINI_MODELS.find(m => m.id === selectedModel)?.description}
+                {modelList.find(m => m.id === selectedModel)?.description}
               </p>
             </div>
 

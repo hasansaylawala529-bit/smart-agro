@@ -108,49 +108,131 @@ export interface GeminiModelOption {
 }
 
 /**
- * Official verified Google AI Studio Gemini API endpoints
+ * Official verified Google AI Studio Gemini API endpoints (Gemini 3 Generation)
  */
 export const AVAILABLE_GEMINI_MODELS: GeminiModelOption[] = [
   {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
-    badge: "Recommended (High Quota)",
-    description: "Google's production-ready multimodal flagship. Highest speed, generous free tier limit (15 requests/min, 1,500/day).",
+    id: "gemini-3.8-flash",
+    name: "Gemini 3.8 Flash",
+    badge: "Latest & Fastest (Sept 2026)",
+    description: "Google's newest flagship multimodal model. Exceptional reasoning, low latency, and high quota throughput.",
     recommended: true,
   },
   {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
-    badge: "Fast & Lightweight",
-    description: "Proven high-throughput model with generous free tier availability.",
+    id: "gemini-3.5-flash",
+    name: "Gemini 3.5 Flash",
+    badge: "High Speed Agentic",
+    description: "Production-ready high throughput model optimized for multi-step agricultural workflows and vision diagnosis.",
   },
   {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
-    badge: "Deep Reasoning",
-    description: "Advanced reasoning for multi-step agronomic analysis. (Free tier has a strict limit of 2 requests/min).",
+    id: "gemini-3.5-pro",
+    name: "Gemini 3.5 Pro",
+    badge: "Frontier Reasoning",
+    description: "Frontier multimodal intelligence for deep agronomic pathologies, plant diseases, and soil chemistry.",
+  },
+  {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    badge: "Stable Workhorse",
+    description: "Established stable production multimodal model with reliable availability.",
   },
 ];
 
 /**
- * Get active model with automatic sanitization of outdated/invalid model IDs
+ * Dynamically fetch live available models directly from Google AI Studio v1beta API for the given key
+ */
+export async function fetchLiveGeminiModels(apiKey: string): Promise<GeminiModelOption[]> {
+  try {
+    const cleaned = apiKey.trim().replace(/^["']|["']$/g, "");
+    if (!cleaned) return AVAILABLE_GEMINI_MODELS;
+    
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleaned}`);
+    if (!res.ok) return AVAILABLE_GEMINI_MODELS;
+    const data = await res.json();
+    if (!data.models || !Array.isArray(data.models)) return AVAILABLE_GEMINI_MODELS;
+
+    const supported = data.models
+      .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
+      .map((m: any) => {
+        const id = m.name.replace(/^models\//, "");
+        const is38 = id.includes("3.8");
+        const is35 = id.includes("3.5");
+        const isFlash = id.includes("flash");
+        const isPro = id.includes("pro");
+        return {
+          id,
+          name: m.displayName || id,
+          badge: is38 ? "Latest (3.8)" : is35 ? "Gemini 3.5" : isFlash ? "High Speed" : isPro ? "Deep Reasoning" : "Multimodal",
+          description: m.description || `Google AI Studio ${id} model.`,
+          recommended: id === "gemini-3.8-flash" || (is38 && isFlash),
+        };
+      })
+      .sort((a: GeminiModelOption, b: GeminiModelOption) => {
+        const score = (id: string) => {
+          if (id.includes("3.8-flash")) return 100;
+          if (id.includes("3.8")) return 90;
+          if (id.includes("3.5-flash")) return 80;
+          if (id.includes("3.5-pro")) return 75;
+          if (id.includes("3.5")) return 70;
+          if (id.includes("2.5-flash")) return 60;
+          return 10;
+        };
+        return score(b.id) - score(a.id);
+      });
+
+    if (supported.length > 0) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("gemini_live_models", JSON.stringify(supported));
+      }
+      return supported;
+    }
+    return AVAILABLE_GEMINI_MODELS;
+  } catch (err) {
+    console.warn("Unable to fetch live models from Google AI Studio:", err);
+    return AVAILABLE_GEMINI_MODELS;
+  }
+}
+
+/**
+ * Get active model with automatic sanitization of outdated/retired model IDs
  */
 export const getGeminiModel = (): string => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("gemini_model");
-    if (saved && AVAILABLE_GEMINI_MODELS.some((m) => m.id === saved)) {
+
+    // Automatically purge obsolete 1.x and 2.0 models that return 404
+    const retired = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-exp"];
+    if (!saved || retired.includes(saved)) {
+      localStorage.setItem("gemini_model", "gemini-3.8-flash");
+      return "gemini-3.8-flash";
+    }
+
+    // Check against live cached models or default list
+    const cachedLive = localStorage.getItem("gemini_live_models");
+    let validIds = AVAILABLE_GEMINI_MODELS.map((m) => m.id);
+    if (cachedLive) {
+      try {
+        const parsed = JSON.parse(cachedLive);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          validIds = [...new Set([...validIds, ...parsed.map((p: any) => p.id)])];
+        }
+      } catch {}
+    }
+
+    if (validIds.includes(saved)) {
       return saved;
     }
-    // Automatically sanitize invalid or preview models back to stable gemini-2.0-flash
-    localStorage.setItem("gemini_model", "gemini-2.0-flash");
-    return "gemini-2.0-flash";
+
+    localStorage.setItem("gemini_model", "gemini-3.8-flash");
+    return "gemini-3.8-flash";
   }
-  return "gemini-2.0-flash";
+  return "gemini-3.8-flash";
 };
 
 export const setGeminiModel = (model: string): void => {
   if (typeof window !== "undefined") {
-    const sanitized = AVAILABLE_GEMINI_MODELS.some((m) => m.id === model) ? model : "gemini-2.0-flash";
+    const retired = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-exp"];
+    const sanitized = retired.includes(model) ? "gemini-3.8-flash" : model;
     localStorage.setItem("gemini_model", sanitized);
   }
 };
@@ -199,8 +281,8 @@ export async function getGeminiResponse(
   }
 
   const configuredModel = getGeminiModel();
-  // Safe fallback sequence: user selected model -> gemini-2.0-flash -> gemini-1.5-flash
-  const modelsToTry = [configuredModel, "gemini-2.0-flash", "gemini-1.5-flash"].filter(
+  // Safe modern fallback sequence: configured -> gemini-3.8-flash -> gemini-3.5-flash -> gemini-2.5-flash
+  const modelsToTry = [configuredModel, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash"].filter(
     (m, i, arr) => arr.indexOf(m) === i
   );
 
@@ -435,7 +517,7 @@ export async function analyzeCropImageWithGemini(
   const { base64Data, mimeType } = await prepareImageForGemini(imageDataUrl, rawMimeType);
 
   const configuredModel = getGeminiModel();
-  const modelsToTry = [configuredModel, "gemini-2.0-flash", "gemini-1.5-flash"].filter(
+  const modelsToTry = [configuredModel, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash"].filter(
     (m, i, arr) => arr.indexOf(m) === i
   );
 
