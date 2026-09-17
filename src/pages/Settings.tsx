@@ -26,7 +26,7 @@ const Settings: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [apiKey, setApiKey] = useState("");
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
 
   useEffect(() => {
     setIsApiKeyConfigured(isGeminiConfigured());

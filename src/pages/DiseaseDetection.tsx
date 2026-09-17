@@ -140,7 +140,7 @@ const DiseaseDetection: React.FC = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedImage) return;
+    if (!selectedImage || analyzing) return;
 
     setAnalyzing(true);
     setAnalyzingStep(

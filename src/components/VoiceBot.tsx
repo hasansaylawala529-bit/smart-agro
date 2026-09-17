@@ -48,6 +48,7 @@ const VoiceBot: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -69,6 +70,7 @@ const VoiceBot: React.FC = () => {
         recognitionRef.current.lang = langMap[lang] || "en-IN";
 
         recognitionRef.current.onresult = (event) => {
+          if (isProcessingRef.current) return;
           const transcript = event.results[0][0].transcript;
           // Use ref to always get latest handler
           handleUserMessageRef.current(transcript);
@@ -164,8 +166,11 @@ const VoiceBot: React.FC = () => {
   }, [lang, voiceEnabled]);
 
   const handleUserMessage = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+    if (isProcessingRef.current || !text.trim()) return;
     
+    isProcessingRef.current = true;
+    setIsProcessing(true);
+
     // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -176,7 +181,6 @@ const VoiceBot: React.FC = () => {
     
     setMessages(prev => [...prev, userMessage]);
     setInputText("");
-    setIsProcessing(true);
 
     // Update conversation history
     const newHistory: ConversationMessage[] = [
@@ -222,6 +226,7 @@ const VoiceBot: React.FC = () => {
       
       setMessages(prev => [...prev, botMessage]);
     } finally {
+      isProcessingRef.current = false;
       setIsProcessing(false);
     }
   }, [lang, location.district, speak, conversationHistory]);
@@ -268,6 +273,7 @@ const VoiceBot: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProcessingRef.current) return;
     handleUserMessage(inputText);
   };
 
@@ -420,7 +426,7 @@ const VoiceBot: React.FC = () => {
                   "Type your question..."
                 }
                 className="flex-1"
-                disabled={isListening}
+                disabled={isListening || isProcessing}
               />
               <Button type="submit" size="icon" disabled={!inputText.trim() || isProcessing}>
                 <Send className="h-4 w-4" />

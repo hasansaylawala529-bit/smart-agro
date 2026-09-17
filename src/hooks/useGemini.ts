@@ -236,17 +236,22 @@ Base your crop and weather advice strictly on this real farm data above. Do NOT 
       return text;
     } catch (error: any) {
       console.warn(`Model ${modelName} call error:`, error?.message);
-      
-      // If this was the last model in our fallback chain, format a precise diagnostic response
-      if (modelName === modelsToTry[modelsToTry.length - 1]) {
-        const errorMsg = error?.message || "";
+      const errorMsg = error?.message || "";
+      const isInvalidKey =
+        errorMsg.includes("API_KEY_INVALID") ||
+        errorMsg.includes("API key not valid") ||
+        errorMsg.includes("key is invalid");
+      const isQuotaOrRateLimit =
+        /\b429\b/.test(errorMsg) ||
+        /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
+        /\brate[- ]?limit/i.test(errorMsg) ||
+        /\bquota\b/i.test(errorMsg);
 
+      // On invalid key or quota exhaustion, trying other models with the same key is futile and burns quota. Fail immediately.
+      const isLastModel = modelName === modelsToTry[modelsToTry.length - 1];
+      if (isInvalidKey || isQuotaOrRateLimit || isLastModel) {
         // 1. Invalid API Key
-        if (
-          errorMsg.includes("API_KEY_INVALID") ||
-          errorMsg.includes("API key not valid") ||
-          errorMsg.includes("key is invalid")
-        ) {
+        if (isInvalidKey) {
           const invalidKeyMessages = {
             en: "The Gemini API key appears invalid. Please verify your API key in Settings (get a fresh key from aistudio.google.com).",
             hi: "Gemini API key अमान्य है। कृपया सेटिंग्स में अपनी API key की जांच करें (aistudio.google.com से नई key लें)।",
@@ -255,13 +260,8 @@ Base your crop and weather advice strictly on this real farm data above. Do NOT 
           return invalidKeyMessages[lang];
         }
         
-        // 2. Real Quota / Rate Limit (using word boundary and specific status codes)
-        if (
-          /\b429\b/.test(errorMsg) ||
-          /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
-          /\brate[- ]?limit/i.test(errorMsg) ||
-          /\bquota\b/i.test(errorMsg)
-        ) {
+        // 2. Real Quota / Rate Limit
+        if (isQuotaOrRateLimit) {
           const quotaMessages = {
             en: "Google Gemini Free Tier Rate Limit Reached (429). The free tier limits requests per minute. Please wait 30–60 seconds, or ensure 'Gemini 2.0 Flash' is selected in Settings.",
             hi: "Google Gemini फ्री टियर दर सीमा समाप्त (429)। कृपया 30-60 सेकंड प्रतीक्षा करें, या सेटिंग्स में 'Gemini 2.0 Flash' चुनें।",
@@ -516,17 +516,20 @@ CRITICAL: Return ONLY a raw JSON object (do NOT wrap in markdown \`\`\`json code
       return parsed;
     } catch (err: any) {
       console.warn(`Vision inference failed on model ${modelName}:`, err?.message);
-      if (modelName === modelsToTry[modelsToTry.length - 1]) {
-        const errorMsg = err?.message || "";
-        if (errorMsg.includes("API_KEY_INVALID") || errorMsg.includes("API key not valid")) {
+      const errorMsg = err?.message || "";
+      const isInvalidKey = errorMsg.includes("API_KEY_INVALID") || errorMsg.includes("API key not valid");
+      const isQuotaOrRateLimit =
+        /\b429\b/.test(errorMsg) ||
+        /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
+        /\brate[- ]?limit/i.test(errorMsg) ||
+        /\bquota\b/i.test(errorMsg);
+
+      const isLastModel = modelName === modelsToTry[modelsToTry.length - 1];
+      if (isInvalidKey || isQuotaOrRateLimit || isLastModel) {
+        if (isInvalidKey) {
           throw new Error("Invalid Gemini API Key. Please verify your API key in Settings.");
         }
-        if (
-          /\b429\b/.test(errorMsg) ||
-          /RESOURCE_EXHAUSTED/i.test(errorMsg) ||
-          /\brate[- ]?limit/i.test(errorMsg) ||
-          /\bquota\b/i.test(errorMsg)
-        ) {
+        if (isQuotaOrRateLimit) {
           throw new Error("Gemini API rate limit reached (429). Please wait 30–60 seconds and try again.");
         }
         const cleanMsg = errorMsg.replace(/\[GoogleGenerativeAI Error\]:\s*/, "").slice(0, 160);
